@@ -38,8 +38,17 @@ import org.apache.ibatis.io.Resources;
  */
 public class UnpooledDataSource implements DataSource {
 
+  /**
+   * 加载 Driver 类的类加载器
+   */
   private ClassLoader driverClassLoader;
+  /**
+   * 数据库连接驱动的相关配置
+   */
   private Properties driverProperties;
+  /**
+   * 缓存所有已注册的数据库连接驱动
+   */
   private static final Map<String, Driver> registeredDrivers = new ConcurrentHashMap<>();
 
   private String driver;
@@ -48,13 +57,18 @@ public class UnpooledDataSource implements DataSource {
   private String password;
 
   private Boolean autoCommit;
+  /**
+   * 默认事务隔离级别
+   */
   private Integer defaultTransactionIsolationLevel;
   private Integer defaultNetworkTimeout;
 
   static {
+    // 从DriverManager中读取JDBC驱动
     Enumeration<Driver> drivers = DriverManager.getDrivers();
     while (drivers.hasMoreElements()) {
       Driver driver = drivers.nextElement();
+      // 将DriverManager中的全部JDBC驱动记录到registeredDrivers集合
       registeredDrivers.put(driver.getClass().getName(), driver);
     }
   }
@@ -224,8 +238,13 @@ public class UnpooledDataSource implements DataSource {
   }
 
   private Connection doGetConnection(Properties properties) throws SQLException {
+    // 初始化数据库驱动
     initializeDriver();
+    // 创建数据库连接
     Connection connection = DriverManager.getConnection(url, properties);
+    // 配置数据库连接
+    // configureConnection() 方法会对数据库连接进行一系列配置
+    // 例如，数据库连接超时时长、事务是否自动提交以及使用的事务隔离级别
     configureConnection(connection);
     return connection;
   }
