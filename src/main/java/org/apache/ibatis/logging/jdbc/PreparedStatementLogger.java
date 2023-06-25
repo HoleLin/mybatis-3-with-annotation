@@ -44,6 +44,7 @@ public final class PreparedStatementLogger extends BaseJdbcLogger implements Inv
   public Object invoke(Object proxy, Method method, Object[] params) throws Throwable {
     try {
       if (Object.class.equals(method.getDeclaringClass())) {
+        // 如果调用Object的方法，则直接调用，不做任何其他处理
         return method.invoke(this, params);
       }
       if (EXECUTE_METHODS.contains(method.getName())) {

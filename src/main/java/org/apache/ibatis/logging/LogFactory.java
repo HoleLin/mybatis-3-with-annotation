@@ -92,8 +92,10 @@ public final class LogFactory {
   }
 
   private static void tryImplementation(Runnable runnable) {
+    // 首先会检测 logConstructor 字段是否为空，如果不为空，则表示已经成功确定当前使用的日志框架，直接返回
     if (logConstructor == null) {
       try {
+        // 如果为空，则在当前线程中执行传入的 Runnable.run() 方法，尝试确定当前使用的日志框架
         runnable.run();
       } catch (Throwable t) {
         // ignore
@@ -103,11 +105,14 @@ public final class LogFactory {
 
   private static void setImplementation(Class<? extends Log> implClass) {
     try {
+      // 获取implClass这个适配器的构造方法
       Constructor<? extends Log> candidate = implClass.getConstructor(String.class);
+      // 尝试加载implClass这个适配器，加载失败会抛出异常
       Log log = candidate.newInstance(LogFactory.class.getName());
       if (log.isDebugEnabled()) {
         log.debug("Logging initialized using '" + implClass + "' adapter.");
       }
+      // 加载成功，则更新logConstructor字段，记录适配器的构造方法
       logConstructor = candidate;
     } catch (Throwable t) {
       throw new LogException("Error setting Log implementation.  Cause: " + t, t);
