@@ -54,30 +54,59 @@ import org.apache.ibatis.util.MapUtil;
 public class Reflector {
 
   private static final MethodHandle isRecordMethodHandle = getIsRecordMethodHandle();
+  /**
+   * 该Reflector对应封装的Class类型
+   */
   private final Class<?> type;
+  /**
+   * 可读 可写属性的名称集合
+   */
   private final String[] readablePropertyNames;
   private final String[] writablePropertyNames;
+  /**
+   * 可读、可写属性对应的 getter 方法和 setter 方法集合,key 是属性的名称,value 是一个 Invoker 对象.Invoker 是对 Method 对象的封装
+   */
   private final Map<String, Invoker> setMethods = new HashMap<>();
   private final Map<String, Invoker> getMethods = new HashMap<>();
+  /**
+   * 属性对应的 getter 方法返回值以及 setter 方法的参数值类型,key 是属性名称,value 是方法的返回值类型或参数类型
+   */
   private final Map<String, Class<?>> setTypes = new HashMap<>();
   private final Map<String, Class<?>> getTypes = new HashMap<>();
+  /**
+   * 默认构造方法
+   */
   private Constructor<?> defaultConstructor;
 
+  /**
+   * 所有属性名称的集合,记录到这个集合中的属性名称都是大写的
+   */
   private final Map<String, String> caseInsensitivePropertyMap = new HashMap<>();
 
   public Reflector(Class<?> clazz) {
+    // 用 type 字段记录传入的 Class 对象
     type = clazz;
+    // 通过反射拿到 Class 类的全部构造方法,并进行遍历,过滤得到唯一的无参构造方法来初始化 defaultConstructor 字段.
+    // 这部分逻辑在 addDefaultConstructor() 方法中实现
     addDefaultConstructor(clazz);
     Method[] classMethods = getClassMethods(clazz);
     if (isRecord(type)) {
       addRecordGetMethods(classMethods);
     } else {
+      // 1. 读取 Class 类中的 getter方法,填充上面介绍的 getMethods 集合和 getTypes 集合.
+      // 这部分逻辑在 addGetMethods() 方法中实现
       addGetMethods(classMethods);
+      // 2. 读取 Class 类中的 setter 方法,填充上面介绍的 setMethods 集合和 setTypes 集合.
+      // 这部分逻辑在 addSetMethods() 方法中实现
       addSetMethods(classMethods);
+      // 3. 读取 Class 中没有 getter/setter 方法的字段,生成对应的 Invoker 对象,填充 getMethods 集合、getTypes 集合以及 setMethods 集合、setTypes 集合.
+      // 这部分逻辑在 addFields() 方法中实现.
       addFields(clazz);
     }
+    // 根据前面三步构造的 getMethods/setMethods 集合的 keySet,初始化 readablePropertyNames、writablePropertyNames 集合
     readablePropertyNames = getMethods.keySet().toArray(new String[0]);
     writablePropertyNames = setMethods.keySet().toArray(new String[0]);
+    // 遍历构造的 readablePropertyNames、writablePropertyNames 集合,将其中的属性名称全部转化成大写并记录到 caseInsensitivePropertyMap 集合中
     for (String propName : readablePropertyNames) {
       caseInsensitivePropertyMap.put(propName.toUpperCase(Locale.ENGLISH), propName);
     }
@@ -98,41 +127,55 @@ public class Reflector {
   }
 
   private void addGetMethods(Method[] methods) {
+    // 按照 Java 的规范，从上一步返回的 Method 数组中查找 getter 方法，将其记录到 conflictingGetters 集合中
+    // conflictingGetters 集合（HashMap<String, List>()类型）中的 Key 为属性名称，Value 是该属性对应的 getter 方法集合
     Map<String, List<Method>> conflictingGetters = new HashMap<>();
     Arrays.stream(methods).filter(m -> m.getParameterTypes().length == 0 && PropertyNamer.isGetter(m.getName()))
         .forEach(m -> addMethodConflict(conflictingGetters, PropertyNamer.methodToProperty(m.getName()), m));
+    // 解决方法签名冲突
     resolveGetterConflicts(conflictingGetters);
   }
 
   private void resolveGetterConflicts(Map<String, List<Method>> conflictingGetters) {
+    // 处理冲突的核心逻辑其实就是比较 getter 方法的返回值，优先选择返回值为子类的 getter 方法
     for (Entry<String, List<Method>> entry : conflictingGetters.entrySet()) {
+      // 先初始化一个变量 winner 为 null，表示目前还没有确定的优胜的 getter 方法
       Method winner = null;
       String propName = entry.getKey();
       boolean isAmbiguous = false;
       for (Method candidate : entry.getValue()) {
+        // 如果 winner 为 null，则将当前 getter 方法赋值给 winner 变量，并继续下一个 getter 方法的比较
         if (winner == null) {
           winner = candidate;
           continue;
         }
         Class<?> winnerType = winner.getReturnType();
         Class<?> candidateType = candidate.getReturnType();
+        // 如果 winner 不为 null，需要比较当前 getter 方法的返回值类型
         if (candidateType.equals(winnerType)) {
+          // 如果当前 getter 方法的返回值类型与 winner 的返回值类型相同，且不是 boolean 类型，则说明存在歧义，设置 isAmbiguous 为 true，然后跳出循环
           if (!boolean.class.equals(candidateType)) {
             isAmbiguous = true;
             break;
           }
+          // 如果当前 getter 方法的返回值类型与 winner 的返回值类型相同，
+          // 但都是 boolean 类型，且当前 getter 方法以 "is" 开头，则将当前 getter 方法赋值给 winner，以保留以 "is" 开头的布尔类型 getter 方法
           if (candidate.getName().startsWith("is")) {
             winner = candidate;
           }
+          // 如果当前 getter 方法的返回值类型是 winner 的返回值类型的子类或实现类，则说明当前 getter 方法更具体，继续下一个 getter 方法的比较
         } else if (candidateType.isAssignableFrom(winnerType)) {
           // OK getter type is descendant
         } else if (winnerType.isAssignableFrom(candidateType)) {
+          // 如果当前 getter 方法的返回值类型是 winner 的返回值类型所在的父类或接口，则说明当前 getter 方法不如 winner 具体，将 winner 赋值为当前 getter 方法
           winner = candidate;
         } else {
+          // 如果以上条件都不满足，说明存在歧义，设置 isAmbiguous 为 true，然后跳出循环
           isAmbiguous = true;
           break;
         }
       }
+      // 最后，将处理完成的属性名、优胜的 getter 方法和 isAmbiguous 标志传递给 addGetMethod 方法进行处理
       addGetMethod(propName, winner, isAmbiguous);
     }
   }
@@ -309,6 +352,8 @@ public class Reflector {
   private void addUniqueMethods(Map<String, Method> uniqueMethods, Method[] methods) {
     for (Method currentMethod : methods) {
       if (!currentMethod.isBridge()) {
+        // signature format: returnType#methodName:parameterTypes
+        // for example: java.lang.String#addGetMethods:java.lang.Class
         String signature = getSignature(currentMethod);
         // check to see if the method is already known
         // if it is known, then an extended class must have

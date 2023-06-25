@@ -27,6 +27,7 @@ import org.apache.ibatis.reflection.invoker.MethodInvoker;
 import org.apache.ibatis.reflection.property.PropertyTokenizer;
 
 /**
+ * MetaClass 提供了获取类中属性描述信息的功能
  * @author Clinton Begin
  */
 public class MetaClass {

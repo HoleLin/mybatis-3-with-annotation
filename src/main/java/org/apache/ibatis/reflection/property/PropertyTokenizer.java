@@ -18,12 +18,30 @@ package org.apache.ibatis.reflection.property;
 import java.util.Iterator;
 
 /**
+ * PropertyTokenizer 工具类负责解析由“.”和“[]”构成的表达式。PropertyTokenizer 继承了 Iterator 接口，可以迭代处理嵌套多层表达式
  * @author Clinton Begin
  */
 public class PropertyTokenizer implements Iterator<PropertyTokenizer> {
+
+  /**
+   * 属性名表示当前属性表达式中的属性名称。
+   * 例如，对于属性表达式 "user.name"，name 属性的值将是 "name"
+   */
   private String name;
+  /**
+   * 带索引的属性名是指包含索引值的属性名。如果当前属性表达式中存在索引，
+   * 例如 "list[0].name"，则 indexedName 属性的值将是 "list[0]"
+   */
   private final String indexedName;
+  /**
+   * 如果属性表达式中存在索引（例如 "list[0].name"），index 属性将包含索引值，此处值为 "0"。
+   * 如果属性表达式中没有索引，则 index 属性值为空
+   */
   private String index;
+  /**
+   * 子属性表达式是嵌套在当前属性表达式后面的下一个属性表达式。如果当前属性表达式没有嵌套属性，children 属性将为 null。
+   * 例如，在表达式 "user.address.street" 中，children 表示 "address.street"
+   */
   private final String children;
 
   public PropertyTokenizer(String fullname) {
