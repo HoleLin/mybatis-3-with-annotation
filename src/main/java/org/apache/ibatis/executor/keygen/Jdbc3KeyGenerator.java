@@ -44,6 +44,7 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 import org.apache.ibatis.util.MapUtil;
 
 /**
+ * Jdbc3KeyGenerator 用于获取数据库生成的自增 id(例如 MySQL 那种生成模式)
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
@@ -68,6 +69,7 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
 
   @Override
   public void processAfter(Executor executor, MappedStatement ms, Statement stmt, Object parameter) {
+    // 会将 insert 语句执行后生成的主键保存到用户传递的实参中
     processBatch(ms, stmt, parameter);
   }
 
@@ -76,12 +78,14 @@ public class Jdbc3KeyGenerator implements KeyGenerator {
     if (keyProperties == null || keyProperties.length == 0) {
       return;
     }
+    // 将数据库生成的自增id作为结果集返回
     try (ResultSet rs = stmt.getGeneratedKeys()) {
       final ResultSetMetaData rsmd = rs.getMetaData();
       final Configuration configuration = ms.getConfiguration();
       if (rsmd.getColumnCount() < keyProperties.length) {
         // Error?
       } else {
+        // 处理rs这个结果集，将生成的id设置到对应的属性中
         assignKeys(configuration, rs, rsmd, keyProperties, parameter);
       }
     } catch (Exception e) {

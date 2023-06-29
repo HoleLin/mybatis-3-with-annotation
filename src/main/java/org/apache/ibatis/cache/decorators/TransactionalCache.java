@@ -42,6 +42,9 @@ public class TransactionalCache implements Cache {
   private final Cache delegate;
   private boolean clearOnCommit;
   private final Map<Object, Object> entriesToAddOnCommit;
+  /**
+   * 用来记录未命中的 CacheKey 对象
+   */
   private final Set<Object> entriesMissedInCache;
 
   public TransactionalCache(Cache delegate) {
@@ -77,6 +80,7 @@ public class TransactionalCache implements Cache {
 
   @Override
   public void putObject(Object key, Object object) {
+    // 将数据暂存到entriesToAddOnCommit集合
     entriesToAddOnCommit.put(key, object);
   }
 
@@ -100,6 +104,7 @@ public class TransactionalCache implements Cache {
   }
 
   public void rollback() {
+    // 在事务回滚时，会调用底层二级缓存的 removeObject() 方法，删除 entriesMissedInCache 集合中 CacheKey
     unlockMissedEntries();
     reset();
   }
@@ -111,9 +116,13 @@ public class TransactionalCache implements Cache {
   }
 
   private void flushPendingEntries() {
+    // 为什么要在事务提交时才将 entriesToAddOnCommit 集合中的缓存数据写入底层真正的二级缓存中，而不是像操作一级缓存那样，每次查询都直接写入缓存呢？
+    // 其实这是为了防止出现“脏读”
     for (Map.Entry<Object, Object> entry : entriesToAddOnCommit.entrySet()) {
+      // 将entriesToAddOnCommit集合中的数据添加到二级缓存
       delegate.putObject(entry.getKey(), entry.getValue());
     }
+    // 在事务提交的时候，会将 entriesMissedInCache 集合中的 CacheKey 写入底层的二级缓存（写入时的 Value 为 null）
     for (Object entry : entriesMissedInCache) {
       if (!entriesToAddOnCommit.containsKey(entry)) {
         delegate.putObject(entry, null);

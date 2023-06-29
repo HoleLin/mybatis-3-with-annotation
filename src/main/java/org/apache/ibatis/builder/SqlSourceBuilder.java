@@ -30,6 +30,10 @@ import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.type.JdbcType;
 
 /**
+ * 核心操作
+ * * 解析“#{}”占位符中携带的各种属性，例如，“#{id, javaType=int, jdbcType=NUMERIC, typeHandler=MyTypeHandler}”这个占位符，
+ *   指定了 javaType、jdbcType、typeHandler 等配置；
+ * * 将 SQL 语句中的“#{}”占位符替换成“?”占位符，替换之后的 SQL 语句就可以提交给数据库进行编译了
  * @author Clinton Begin
  */
 public class SqlSourceBuilder extends BaseBuilder {
@@ -69,6 +73,11 @@ public class SqlSourceBuilder extends BaseBuilder {
 
   private static class ParameterMappingTokenHandler extends BaseBuilder implements TokenHandler {
 
+    /**
+     * 用来记录每个占位符参数解析后的结果
+     * ParameterMapping 记录了占位符名称（property 字段）、jdbcType 属性值（jdbcType 字段）、
+     * javaType 属性值（javaType 字段）、typeHandler 属性值（typeHandler 字段）等
+     */
     private final List<ParameterMapping> parameterMappings = new ArrayList<>();
     private final Class<?> parameterType;
     private final MetaObject metaParameters;
@@ -86,7 +95,10 @@ public class SqlSourceBuilder extends BaseBuilder {
 
     @Override
     public String handleToken(String content) {
+      // content是前面通过GenericTokenParser识别到的#{}占位符，
+      // 这里通过buildParameterMapping()方法进行解析，得到ParameterMapping对象
       parameterMappings.add(buildParameterMapping(content));
+      // 直接返回"?"占位符，替换原有的#{}占位符
       return "?";
     }
 

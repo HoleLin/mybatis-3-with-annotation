@@ -55,7 +55,13 @@ public abstract class BaseExecutor implements Executor {
   protected Executor wrapper;
 
   protected ConcurrentLinkedQueue<DeferredLoad> deferredLoads;
+  /**
+   * 用来缓存其他查询方式的结果对象
+   */
   protected PerpetualCache localCache;
+  /**
+   * 用来缓存存储过程的输出参数
+   */
   protected PerpetualCache localOutputParameterCache;
   protected Configuration configuration;
 
@@ -133,6 +139,7 @@ public abstract class BaseExecutor implements Executor {
   public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler)
       throws SQLException {
     BoundSql boundSql = ms.getBoundSql(parameter);
+    // 创建 CacheKey 对象
     CacheKey key = createCacheKey(ms, parameter, rowBounds, boundSql);
     return query(ms, parameter, rowBounds, resultHandler, key, boundSql);
   }
@@ -145,28 +152,43 @@ public abstract class BaseExecutor implements Executor {
     if (closed) {
       throw new ExecutorException("Executor was closed.");
     }
+    // 有两处影响一级缓存中结果对象生命周期的配置：
+    //    一个是 <select> 标签的 flushCache 配置，它决定了一条 select 语句执行之前是否会清除一级缓存；
+    //    另一个是全局的 localCacheScope 配置，它决定了一级缓存的生命周期是语句级别的（STATEMENT）还是 SqlSession 级别的（SESSION），默认值是 SqlSession 级别的
     if (queryStack == 0 && ms.isFlushCacheRequired()) {
+      // 非嵌套查询，并且<select>标签配置的flushCache属性为true时，才会清空一级缓存
+      // 注意：flushCache配置项会影响一级缓存中结果对象存活时长
       clearLocalCache();
     }
     List<E> list;
     try {
+      // 增加查询层数
       queryStack++;
+      // 查询一级缓存
       list = resultHandler == null ? (List<E>) localCache.getObject(key) : null;
       if (list != null) {
+        // 对存储过程出参的处理：如果命中一级缓存，则获取缓存中保存的输出参数，
+        // 然后记录到用户传入的实参对象中
         handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);
       } else {
+        // queryFromDatabase()方法内部首先会在localCache中设置一个占位符，然后调用doQuery()方法完成数据库查询，并得到映射后的结果对象, doQuery()方法是
+        // 一个抽象方法，由BaseExecutor的子类具体实现
         list = queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);
       }
     } finally {
+      // 当前查询完成，查询层数减少
       queryStack--;
     }
+    // 完成嵌套查询的填充
     if (queryStack == 0) {
       for (DeferredLoad deferredLoad : deferredLoads) {
         deferredLoad.load();
       }
       // issue #601
+      // 清空deferredLoads集合
       deferredLoads.clear();
       if (configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) {
+        // 根据配置决定是否清空localCache
         // issue #482
         clearLocalCache();
       }
@@ -200,6 +222,7 @@ public abstract class BaseExecutor implements Executor {
       throw new ExecutorException("Executor was closed.");
     }
     CacheKey cacheKey = new CacheKey();
+    // 主要包含五个部分：MappedStatement 的 id、RowBounds 中的 offset 和 limit 信息、SQL 语句（包含“?”占位符）、用户传递的实参信息以及 Environment ID
     cacheKey.update(ms.getId());
     cacheKey.update(rowBounds.getOffset());
     cacheKey.update(rowBounds.getLimit());

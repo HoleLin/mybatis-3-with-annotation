@@ -34,7 +34,13 @@ public class ForEachSqlNode implements SqlNode {
   private final String open;
   private final String close;
   private final String separator;
+  /**
+   * 指定的变量作为集合元素（迭代 Map 集合的话，就是 Value 值）
+   */
   private final String item;
+  /**
+   * 通过 index 属性值指定的变量作为元素的下标索引（迭代 Map 集合的话，就是 Key 值）
+   */
   private final String index;
   private final Configuration configuration;
 
@@ -78,6 +84,8 @@ public class ForEachSqlNode implements SqlNode {
     int i = 0;
     for (Object o : iterable) {
       DynamicContext oldContext = context;
+      // PrefixedContext 是 DynamicContext 的一个装饰器，其中记录了一个 prefix 前缀信息（其实就是 <foreach> 标签中的 separator 属性值），
+      // 在其 apply() 方法中会先追加 prefix 前缀（迭代第一个元素的时候，prefix 为空字符串），然后追加 SQL 片段
       if (first || separator == null) {
         context = new PrefixedContext(context, "");
       } else {
@@ -109,14 +117,19 @@ public class ForEachSqlNode implements SqlNode {
 
   private void applyIndex(DynamicContext context, Object o, int i) {
     if (index != null) {
+      // Key值与index属性值指定的变量名称绑定
       context.bind(index, o);
+      // Key值还会与"__frch_"+index属性值+ "_" + i 这个变量绑定
+      // 这里传入的 i 是一个自增序列，由底层的 DynamicContext 统一维护。
       context.bind(itemizeItem(index, i), o);
     }
   }
 
   private void applyItem(DynamicContext context, Object o, int i) {
     if (item != null) {
+      // Value值与item属性值指定的变量名称绑定
       context.bind(item, o);
+      // Value值还会与"__frch_"+item属性值+ "_" + i 这个变量绑定
       context.bind(itemizeItem(item, i), o);
     }
   }
@@ -169,14 +182,17 @@ public class ForEachSqlNode implements SqlNode {
 
     @Override
     public void appendSql(String sql) {
+      // 创建识别"#{}"的GenericTokenParser解析器
       GenericTokenParser parser = new GenericTokenParser("#{", "}", content -> {
+        // 这个TokenHandler实现会将#{i}替换成#{__frch_i_0}、#{__frch_i_1}...
         String newContent = content.replaceFirst("^\\s*" + item + "(?![^.,:\\s])", itemizeItem(item, index));
         if (itemIndex != null && newContent.equals(content)) {
+          // 这里会将#{j}替换成#{__frch_j_0}、#{__frch_j_1}...
           newContent = content.replaceFirst("^\\s*" + itemIndex + "(?![^.,:\\s])", itemizeItem(itemIndex, index));
         }
         return "#{" + newContent + "}";
       });
-
+      // 保存解析后的SQL片段
       delegate.appendSql(parser.parse(sql));
     }
 

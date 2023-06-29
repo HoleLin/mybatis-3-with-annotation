@@ -23,6 +23,7 @@ import org.apache.ibatis.session.ResultContext;
 import org.apache.ibatis.session.ResultHandler;
 
 /**
+ * DefaultResultHandler 实现的底层使用 ArrayList<Object> 存储映射得到的 Java 对象
  * @author Clinton Begin
  */
 public class DefaultResultHandler implements ResultHandler<Object> {

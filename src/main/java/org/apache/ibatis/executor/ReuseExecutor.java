@@ -34,10 +34,14 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
 /**
+ * ReuseExecutor 这个 BaseExecutor 实现就实现了重用 Statement 的优化
  * @author Clinton Begin
  */
 public class ReuseExecutor extends BaseExecutor {
 
+  /**
+   * 缓存已有的 Statement 对象，该缓存的 Key 是 SQL 模板，Value 是 SQL 模板对应的 Statement 对象
+   */
   private final Map<String, Statement> statementMap = new HashMap<>();
 
   public ReuseExecutor(Configuration configuration, Transaction transaction) {
@@ -73,9 +77,11 @@ public class ReuseExecutor extends BaseExecutor {
 
   @Override
   public List<BatchResult> doFlushStatements(boolean isRollback) {
+    // 关闭statementMap集合中缓存的全部Statement对象
     for (Statement stmt : statementMap.values()) {
       closeStatement(stmt);
     }
+    // 清空statementMap集合
     statementMap.clear();
     return Collections.emptyList();
   }

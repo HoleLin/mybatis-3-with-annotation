@@ -47,6 +47,9 @@ import org.apache.ibatis.session.RowBounds;
  */
 public class ResultLoaderMap {
 
+  /**
+   * LoadPair 对象就是用来维护 ResultLoader 对象以及一些配置信息的
+   */
   private final Map<String, LoadPair> loaderMap = new HashMap<>();
 
   public void addLoader(String property, MetaObject metaResultObject, ResultLoader resultLoader) {
@@ -76,6 +79,8 @@ public class ResultLoaderMap {
   }
 
   public boolean load(String property) throws SQLException {
+    // 参数是触发加载的属性名称
+    // 从 loaderMap 中获取（并删除）指定属性对应的 ResultLoader 对象，并调用其 load() 方法执行延迟 SQL，完成延迟加载
     LoadPair pair = loaderMap.remove(property.toUpperCase(Locale.ENGLISH));
     if (pair != null) {
       pair.load();

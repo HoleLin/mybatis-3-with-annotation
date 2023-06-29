@@ -23,6 +23,8 @@ import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * DynamicSqlSource 和 RawSqlSource 经过一系列解析之后，
+ * 会得到最终可提交到数据库的 SQL 语句，这个时候就可以通过 StaticSqlSource 进行封装了
  * @author Clinton Begin
  */
 public class StaticSqlSource implements SqlSource {

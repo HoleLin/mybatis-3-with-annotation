@@ -21,6 +21,9 @@ import java.util.List;
  * @author Clinton Begin
  */
 public class MixedSqlNode implements SqlNode {
+  /**
+   * 用于记录 MixedSqlNode 下所有的子 SqlNode 对象
+   */
   private final List<SqlNode> contents;
 
   public MixedSqlNode(List<SqlNode> contents) {
@@ -29,6 +32,7 @@ public class MixedSqlNode implements SqlNode {
 
   @Override
   public boolean apply(DynamicContext context) {
+    // 遍历 List<SqlNode> 集合中全部的子 SqlNode 对象并调用 apply() 方法，由子 SqlNode 对象完成真正的动态 SQL 处理逻辑
     contents.forEach(node -> node.apply(context));
     return true;
   }

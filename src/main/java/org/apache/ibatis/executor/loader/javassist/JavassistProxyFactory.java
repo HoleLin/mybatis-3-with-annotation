@@ -39,6 +39,8 @@ import org.apache.ibatis.reflection.property.PropertyNamer;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 在 JavassistProxyFactory 实现中，
+ * createProxy() 方法通过调用 EnhancedResultObjectProxyImpl 这个内部类的 createProxy() 方法来创建代理对象
  * @author Eduardo Macarron
  */
 public class JavassistProxyFactory implements org.apache.ibatis.executor.loader.ProxyFactory {
@@ -151,11 +153,17 @@ public class JavassistProxyFactory implements org.apache.ibatis.executor.loader.
           }
           if (lazyLoader.size() > 0 && !FINALIZE_METHOD.equals(methodName)) {
             if (aggressive || lazyLoadTriggerMethods.contains(methodName)) {
+              // 会优先检查全局的 aggressiveLazyLoading 配置和 lazyLoadTriggerMethods 配置。
+              // 如果 aggressiveLazyLoading 配置为 true，或此次调用方法名称包含于 lazyLoadTriggerMethods 配置的方法名列表中，
+              // 会立刻将该对象的全部延迟加载属性都加载上来，即触发 ResultLoaderMap.loadAll() 方法
               lazyLoader.loadAll();
             } else if (PropertyNamer.isSetter(methodName)) {
+              // 检查此次调用的方法是否为属性对应的 setter 方法，如果是，则该属性已经被赋值，无须再执行延迟加载操作，
+              // 可以从 ResultLoaderMap 集合中删除该属性以及对应的 ResultLoader 对象。
               final String property = PropertyNamer.methodToProperty(methodName);
               lazyLoader.remove(property);
             } else if (PropertyNamer.isGetter(methodName)) {
+              // 检测此次调用的方法是否为属性对应的 getter 方法，如果是，触发对应的 ResultLoader.load() 方法，完成延迟加载
               final String property = PropertyNamer.methodToProperty(methodName);
               if (lazyLoader.hasLoader(property)) {
                 lazyLoader.load(property);

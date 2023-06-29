@@ -37,6 +37,11 @@ import org.apache.ibatis.type.TypeHandlerRegistry;
 import org.apache.ibatis.type.UnknownTypeHandler;
 
 /**
+ * ResultSetWrapper 主要用于封装 ResultSet 的一些元数据，
+ * 其中记录了 ResultSet 中每列的名称、对应的 Java 类型、JdbcType 类型以及每列对应的 TypeHandler
+ * ResultSetWrapper 可以将底层 ResultSet 的列与一个 ResultMap 映射的列进行交集，得到参与映射的列和未被映射的列，
+ * 分别记录到 mappedColumnNamesMap 集合和 unMappedColumnNamesMap 集合中。
+ * 这两个集合都是 Map<String, List<String>> 类型，其中最外层的 Key 是 ResultMap 的 id，Value 分别是参与映射的列名集合和未被映射的列名集合
  * @author Iwao AVE!
  */
 public class ResultSetWrapper {

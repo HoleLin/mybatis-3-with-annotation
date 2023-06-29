@@ -23,6 +23,7 @@ import org.apache.ibatis.cache.Cache;
 import org.apache.ibatis.cache.CacheException;
 
 /**
+ * BlockingCache 是在原有 Cache 实现之上添加了阻塞线程的特性
  * <p>
  * Simple blocking decorator
  * <p>
@@ -87,20 +88,31 @@ public class BlockingCache implements Cache {
   }
 
   private void acquireLock(Object key) {
+    // 初始化一个全新的CountDownLatch对象
     CountDownLatch newLatch = new CountDownLatch(1);
     while (true) {
+      // 尝试将key与newLatch这个CountDownLatch对象关联起来
+      // 如果没有其他线程并发，则返回的latch为null
       CountDownLatch latch = locks.putIfAbsent(key, newLatch);
       if (latch == null) {
+        // 如果当前key未关联CountDownLatch，
+        // 则无其他线程并发，当前线程获取锁成功
         break;
       }
       try {
+        // 当前key已关联CountDownLatch对象，则表示有其他线程并发操作当前key，
+        // 当前线程需要阻塞在并发线程留下的CountDownLatch对象(latch)之上，
+        // 直至并发线程调用latch.countDown()唤醒该线程
         if (timeout > 0) {
+          // 根据timeout的值，决定阻塞超时时间
           boolean acquired = latch.await(timeout, TimeUnit.MILLISECONDS);
           if (!acquired) {
+            // 超时未获取到锁，则抛出异常
             throw new CacheException(
                 "Couldn't get a lock in " + timeout + " for the key " + key + " at the cache " + delegate.getId());
           }
         } else {
+          // 死等
           latch.await();
         }
       } catch (InterruptedException e) {
@@ -110,6 +122,7 @@ public class BlockingCache implements Cache {
   }
 
   private void releaseLock(Object key) {
+    // 会从 locks 集合中删除 Key 关联的 CountDownLatch 对象，并唤醒阻塞在这个 CountDownLatch 对象上的业务线程
     CountDownLatch latch = locks.remove(key);
     if (latch == null) {
       throw new IllegalStateException("Detected an attempt at releasing unacquired lock. This should never happen.");

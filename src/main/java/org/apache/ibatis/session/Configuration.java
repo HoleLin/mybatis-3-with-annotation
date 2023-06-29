@@ -159,6 +159,9 @@ public class Configuration {
       "Mapped Statements collection")
           .conflictMessageProducer((savedValue, targetValue) -> ". please check " + savedValue.getResource() + " and "
               + targetValue.getResource());
+  /**
+   *  Key是Cache 对象的唯一标识，默认值是Mapper.xml 映射文件的namespace，Value 才是真正的二级缓存对应的 Cache 对象
+   */
   protected final Map<String, Cache> caches = new StrictMap<>("Caches collection");
   protected final Map<String, ResultMap> resultMaps = new StrictMap<>("Result Maps collection");
   protected final Map<String, ParameterMap> parameterMaps = new StrictMap<>("Parameter Maps collection");
@@ -175,6 +178,9 @@ public class Configuration {
   /*
    * A map holds cache-ref relationship. The key is the namespace that references a cache bound to another namespace and
    * the value is the namespace which the actual cache is bound to.
+   */
+  /**
+   *  Key 是 <cache-ref> 标签所属的namespace 标识，Value 值是 <cache-ref> 标签引用的 namespace 值
    */
   protected final Map<String, String> cacheRefMap = new HashMap<>();
 
@@ -730,6 +736,7 @@ public class Configuration {
     } else {
       executor = new SimpleExecutor(this, transaction);
     }
+    // 二级缓存全局开关
     if (cacheEnabled) {
       executor = new CachingExecutor(executor);
     }
@@ -1066,15 +1073,19 @@ public class Configuration {
     @Override
     @SuppressWarnings("unchecked")
     public V put(String key, V value) {
+      // 如果检测到重复 Key 的写入，会直接抛出异常
       if (containsKey(key)) {
         throw new IllegalArgumentException(name + " already contains key " + key
             + (conflictMessageProducer == null ? "" : conflictMessageProducer.apply(super.get(key), value)));
       }
       if (key.contains(".")) {
+        // 在没有重复 Key的情况下，会正常写入 KV 数据，与此同时，还会根据 Key产生一个 shortKey，shortKey 与完整 Key 指向同一个 Value 值
         final String shortKey = getShortName(key);
         if (super.get(shortKey) == null) {
           super.put(shortKey, value);
         } else {
+          // 如果 shortKey 已经存在，则将 value 修改成 Ambiguity 对象，Ambiguity 对象表示这个 shortKey 存在二义性，
+          // 后续通过 StrictMap的get() 方法获取该 shortKey 的时候，会抛出异常
           super.put(shortKey, (V) new Ambiguity(shortKey));
         }
       }

@@ -28,7 +28,13 @@ import org.apache.ibatis.cache.Cache;
 public class FifoCache implements Cache {
 
   private final Cache delegate;
+  /**
+   * 主要利用 LinkedList 集合有序性，记录缓存条目写入 Cache 的先后顺序
+   */
   private final Deque<Object> keyList;
+  /**
+   * 当前 Cache 的大小上限（size 字段），当 Cache 大小超过该值时，就会从 keyList 集合中查找最早的缓存条目并进行清理
+   */
   private int size;
 
   public FifoCache(Cache delegate) {

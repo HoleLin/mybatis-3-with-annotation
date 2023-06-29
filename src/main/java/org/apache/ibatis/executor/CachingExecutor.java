@@ -33,6 +33,7 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
 
 /**
+ * 它是一个 Executor 装饰器实现，会在其他 Executor 的基础之上添加二级缓存的相关功能
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
@@ -85,28 +86,43 @@ public class CachingExecutor implements Executor {
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler)
       throws SQLException {
+    // 获取 BoundSql 对象，创建查询语句对应的 CacheKey 对象
     BoundSql boundSql = ms.getBoundSql(parameterObject);
+    // 创建相应的CacheKey
     CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
+    // 调用下面的query()方法重载
     return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 
   @Override
   public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler,
       CacheKey key, BoundSql boundSql) throws SQLException {
+    // SynchronizedCache -> LoggingCache -> SerializedCache -> LruCache -> PerpetualCache
+    // 获取该命名空间使用的二级缓存
     Cache cache = ms.getCache();
+    // 是否开启了二级缓存功能
     if (cache != null) {
+      // 根据<select>标签配置决定是否需要清空二级缓存
       flushCacheIfRequired(ms);
+      // 检测useCache配置以及是否使用了resultHandler配置
       if (ms.isUseCache() && resultHandler == null) {
+        // ensureNoOutParams主要是用来处理存储过程的
+        // 是否包含输出参数
         ensureNoOutParams(ms, boundSql);
+        // 查询二级缓存，这里使用到 TransactionalCacheManager.getObject() 方法，如果二级缓存命中，则直接将该结果对象返回
         @SuppressWarnings("unchecked")
         List<E> list = (List<E>) tcm.getObject(cache, key);
         if (list == null) {
+          // 如果二级缓存未命中，则通过被装饰的 Executor 对象进行查询
+          // BaseExecutor 会先查询一级缓存，如果一级缓存未命中时，才会真正查询数据库。
+          // 最后，会将查询到的结果对象放入 TransactionalCache.entriesToAddOnCommit 集合中暂存，等待事务提交时再写入二级缓存
           list = delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
           tcm.putObject(cache, key, list); // issue #578 and #116
         }
         return list;
       }
     }
+    // 如果未开启二级缓存，直接通过被装饰的Executor对象查询结果对象
     return delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
   }
 

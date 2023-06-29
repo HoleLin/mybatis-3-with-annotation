@@ -38,18 +38,27 @@ public class DynamicContext {
     OgnlRuntime.setPropertyAccessor(ContextMap.class, new ContextAccessor());
   }
 
+  /**
+   * 用来记录上下文中的一些 KV 信息
+   */
   private final ContextMap bindings;
+  /**
+   * 用来记录解析之后的 SQL 语句
+   */
   private final StringJoiner sqlBuilder = new StringJoiner(" ");
   private int uniqueNumber;
 
   public DynamicContext(Configuration configuration, Object parameterObject) {
     if (parameterObject != null && !(parameterObject instanceof Map)) {
+      // 对于非Map类型的实参，会创建对应的MetaObject对象，并封装成ContextMap对象
       MetaObject metaObject = configuration.newMetaObject(parameterObject);
       boolean existsTypeHandler = configuration.getTypeHandlerRegistry().hasTypeHandler(parameterObject.getClass());
       bindings = new ContextMap(metaObject, existsTypeHandler);
     } else {
+      // 对于Map类型的实参，这里会创建一个空的ContextMap对象
       bindings = new ContextMap(null, false);
     }
+    // 这里实参对应的Key是_parameter
     bindings.put(PARAMETER_OBJECT_KEY, parameterObject);
     bindings.put(DATABASE_ID_KEY, configuration.getDatabaseId());
   }
@@ -87,6 +96,7 @@ public class DynamicContext {
     @Override
     public Object get(Object key) {
       String strKey = (String) key;
+      // 首先，尝试按照 Map 的规则查找 Key，如果查找成功直接返回
       if (super.containsKey(strKey)) {
         return super.get(strKey);
       }
@@ -94,10 +104,11 @@ public class DynamicContext {
       if (parameterMetaObject == null) {
         return null;
       }
-
+      // 然后，再尝试检查 parameterObject 这个实参对象是否包含 Key 这个属性，如果包含的话，则直接读取该属性值返回；
       if (fallbackParameterObject && !parameterMetaObject.hasGetter(strKey)) {
         return parameterMetaObject.getOriginalObject();
       }
+      // 最后，根据当前是否包含 parameterObject 相应的 TypeHandler 决定是返回整个 parameterObject 对象，还是返回 null
       // issue #61 do not modify the context when reading
       return parameterMetaObject.getValue(strKey);
     }

@@ -35,17 +35,32 @@ import org.apache.ibatis.transaction.Transaction;
 import org.apache.ibatis.transaction.TransactionFactory;
 
 /**
+ * MyBatis 中的“延迟加载”是指在查询数据库的时候，MyBatis 不会立即将完整的对象加载到服务内存中，
+ * 而是在业务逻辑真正需要使用这个对象或使用到对象中某些属性的时候，才真正执行数据库查询操作，将完整的对象加载到内存中
+ * 通过字节码生成方式实现的动态代理，底层依赖 cglib 和 javassit 两个库实现动态代码生成
  * @author Clinton Begin
  */
 public class ResultLoader {
 
   protected final Configuration configuration;
+  /**
+   * 用于执行延迟 SQL 的线程池
+   */
   protected final Executor executor;
   protected final MappedStatement mappedStatement;
+  /**
+   * SQL 的实参
+   */
   protected final Object parameterObject;
+  /**
+   * 延迟加载的对象类型
+   */
   protected final Class<?> targetType;
   protected final ObjectFactory objectFactory;
   protected final CacheKey cacheKey;
+  /**
+   * 延迟执行的 SQL 语句
+   */
   protected final BoundSql boundSql;
   protected final ResultExtractor resultExtractor;
   protected final long creatorThreadId;
@@ -68,7 +83,9 @@ public class ResultLoader {
   }
 
   public Object loadResult() throws SQLException {
+    // 通过 selectList() 方法执行 boundSql 这条延迟加载的 SQL 语句
     List<Object> list = selectList();
+    // 通过 ResultExtractor 从这个 List 集合中提取到延迟加载的真正对象
     resultObject = resultExtractor.extractObjectFromList(list, targetType);
     return resultObject;
   }

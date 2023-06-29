@@ -45,6 +45,7 @@ public class GenericTokenParser {
     StringBuilder expression = null;
     do {
       if (start > 0 && src[start - 1] == '\\') {
+        // 如果开启标记前有反斜杠，则该开启标记被转义，移除反斜杠并继续寻找下一个开启标记
         // this open token is escaped. remove the backslash and continue.
         builder.append(src, offset, start - offset - 1).append(openToken);
         offset = start + openToken.length();
@@ -60,19 +61,23 @@ public class GenericTokenParser {
         int end = text.indexOf(closeToken, offset);
         while (end > -1) {
           if ((end <= offset) || (src[end - 1] != '\\')) {
+            // 如果关闭标记前没有反斜杠，则将表达式内容添加到 expression 中并退出循环
             expression.append(src, offset, end - offset);
             break;
           }
           // this close token is escaped. remove the backslash and continue.
+          // 如果关闭标记前有反斜杠，则该关闭标记被转义，移除反斜杠并继续寻找下一个关闭标记
           expression.append(src, offset, end - offset - 1).append(closeToken);
           offset = end + closeToken.length();
           end = text.indexOf(closeToken, offset);
         }
         if (end == -1) {
           // close token was not found.
+          // 如果没有找到关闭标记，则将剩余部分添加到 builder 中，并结束循环
           builder.append(src, start, src.length - start);
           offset = src.length;
         } else {
+          // 如果找到了关闭标记，则将表达式内容传递给 handler 处理，并将处理结果添加到 builder 中
           builder.append(handler.handleToken(expression.toString()));
           offset = end + closeToken.length();
         }

@@ -36,9 +36,12 @@ public class ResultExtractor {
 
   public Object extractObjectFromList(List<Object> list, Class<?> targetType) {
     Object value = null;
+    // 如果目标类型就是 List，那 ResultExtractor 无须进行任何转换，直接返回 List
     if (targetType != null && targetType.isAssignableFrom(list.getClass())) {
       value = list;
     } else if (targetType != null && objectFactory.isCollection(targetType)) {
+      // 如果目标类型是 Collection 子类、数组类型，
+      // 则 ResultExtractor 会创建一个元素为 targetType 类型的集合对象，并将 List<Object> 集合中元素项复制到其中
       value = objectFactory.create(targetType);
       MetaObject metaObject = configuration.newMetaObject(value);
       metaObject.addAll(list);
@@ -56,6 +59,7 @@ public class ResultExtractor {
     } else if (list != null && list.size() > 1) {
       throw new ExecutorException("Statement returned more than one row, where no more than one was expected.");
     } else if (list != null && list.size() == 1) {
+      // 如果目标类型是一个普通 Java 对象，且上面得到的 List 长度为 1，则从 List 中获取到唯一的元素，并转换成 targetType 类型的对象并返回
       value = list.get(0);
     }
     return value;

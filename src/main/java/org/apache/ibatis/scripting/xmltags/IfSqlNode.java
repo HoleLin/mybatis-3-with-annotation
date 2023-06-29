@@ -20,6 +20,9 @@ package org.apache.ibatis.scripting.xmltags;
  */
 public class IfSqlNode implements SqlNode {
   private final ExpressionEvaluator evaluator;
+  /**
+   * <if> 标签中使用可以通过 test 属性指定一个表达式，当表达式成立时，<if> 标签内的 SQL 片段才会出现在完整的 SQL 语句中
+   */
   private final String test;
   private final SqlNode contents;
 

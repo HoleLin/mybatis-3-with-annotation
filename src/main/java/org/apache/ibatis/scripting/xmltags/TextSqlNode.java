@@ -23,6 +23,7 @@ import org.apache.ibatis.scripting.ScriptingException;
 import org.apache.ibatis.type.SimpleTypeRegistry;
 
 /**
+ * TextSqlNode 实现抽象了包含 “${}”占位符的动态 SQL 片段
  * @author Clinton Begin
  */
 public class TextSqlNode implements SqlNode {
@@ -47,7 +48,10 @@ public class TextSqlNode implements SqlNode {
 
   @Override
   public boolean apply(DynamicContext context) {
+    // 创建GenericTokenParser解析器，这里指定的占位符的起止符号分别是"${"和"}"
+    // GenericTokenParser 识别“${}”占位符，在识别到占位符之后，会通过 BindingTokenParser 将“${}”占位符替换为用户传入的实参
     GenericTokenParser parser = createParser(new BindingTokenParser(context, injectionFilter));
+    // 将解析之后的SQL片段追加到DynamicContext暂存
     context.appendSql(parser.parse(text));
     return true;
   }
@@ -68,15 +72,20 @@ public class TextSqlNode implements SqlNode {
 
     @Override
     public String handleToken(String content) {
+      // 获取用户提供的实参数据
       Object parameter = context.getBindings().get("_parameter");
       if (parameter == null) {
+        // 通过value占位符，也可以查找到parameter对象
         context.getBindings().put("value", null);
       } else if (SimpleTypeRegistry.isSimpleType(parameter.getClass())) {
         context.getBindings().put("value", parameter);
       }
+      // 通过Ognl解析"${}"占位符中的表达式，解析失败的话会返回空字符串
       Object value = OgnlCache.getValue(content, context.getBindings());
       String srtValue = value == null ? "" : String.valueOf(value); // issue #274 return "" instead of "null"
+      // 对解析后的值进行过滤
       checkInjection(srtValue);
+      // 通过过滤的值才能正常返回
       return srtValue;
     }
 

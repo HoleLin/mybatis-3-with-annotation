@@ -25,6 +25,7 @@ import java.util.StringTokenizer;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * TrimSqlNode 对应 MyBatis 动态 SQL 语句中的 <trim> 标签
  * @author Clinton Begin
  */
 public class TrimSqlNode implements SqlNode {
@@ -55,7 +56,9 @@ public class TrimSqlNode implements SqlNode {
   @Override
   public boolean apply(DynamicContext context) {
     FilteredDynamicContext filteredDynamicContext = new FilteredDynamicContext(context);
+    // 首先执行子SqlNode对象的apply()方法完成对应动态SQL片段的解析
     boolean result = contents.apply(filteredDynamicContext);
+    // 使用FilteredDynamicContext.applyAll()方法完成前后缀的处理操作
     filteredDynamicContext.applyAll();
     return result;
   }
@@ -122,6 +125,8 @@ public class TrimSqlNode implements SqlNode {
     }
 
     private void applyPrefix(StringBuilder sql, String trimmedUppercaseSql) {
+      // applyPrefix() 方法在处理前缀的时候，首先会遍历 prefixesToOverride 集合，
+      // 从 SQL 片段的头部逐个尝试进行删除，之后在 SQL 片段的头部插入一个空格以及 prefix 字段指定的前缀字符串
       if (!prefixApplied) {
         prefixApplied = true;
         if (prefixesToOverride != null) {
@@ -140,6 +145,8 @@ public class TrimSqlNode implements SqlNode {
     }
 
     private void applySuffix(StringBuilder sql, String trimmedUppercaseSql) {
+      // applyPrefix() 方法在处理前缀的时候，首先会遍历 prefixesToOverride 集合，
+      // 从 SQL 片段的头部逐个尝试进行删除，之后在 SQL 片段的头部插入一个空格以及 prefix 字段指定的前缀字符串
       if (!suffixApplied) {
         suffixApplied = true;
         if (suffixesToOverride != null) {

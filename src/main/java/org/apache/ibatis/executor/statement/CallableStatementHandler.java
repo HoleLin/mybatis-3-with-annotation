@@ -36,6 +36,7 @@ import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.type.JdbcType;
 
 /**
+ * CallableStatementHandler 是处理存储过程的 StatementHandler 实现
  * @author Clinton Begin
  */
 public class CallableStatementHandler extends BaseStatementHandler {
@@ -66,9 +67,13 @@ public class CallableStatementHandler extends BaseStatementHandler {
   @Override
   public <E> List<E> query(Statement statement, ResultHandler resultHandler) throws SQLException {
     CallableStatement cs = (CallableStatement) statement;
+    // 执行存储过程
     cs.execute();
+    // 处理存储过程返回的结果集
     List<E> resultList = resultSetHandler.handleResultSets(cs);
+    // 处理输出参数，可能修改resultList集合
     resultSetHandler.handleOutputParameters(cs);
+    // 返回最后的结果对象
     return resultList;
   }
 

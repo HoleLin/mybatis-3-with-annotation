@@ -26,6 +26,10 @@ import org.apache.ibatis.scripting.xmltags.SqlNode;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ * 当 SQL 语句中只包含静态 SQL 的时候，会使用 RawSqlSource 对象
+ * RawSqlSource，它与 DynamicSqlSource 有两个不同之处：
+ * * RawSqlSource 处理的是非动态 SQL 语句，DynamicSqlSource 处理的是动态 SQL 语句；
+ * * RawSqlSource 解析 SQL 语句的时机是在初始化流程中，而 DynamicSqlSource 解析动态 SQL 的时机是在程序运行过程中，也就是运行时解析。
  * Static SqlSource. It is faster than {@link DynamicSqlSource} because mappings are calculated during startup.
  *
  * @since 3.2.0

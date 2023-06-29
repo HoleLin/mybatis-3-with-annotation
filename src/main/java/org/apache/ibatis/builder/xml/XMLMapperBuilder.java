@@ -102,7 +102,9 @@ public class XMLMapperBuilder extends BaseBuilder {
       bindMapperForNamespace();
     }
 
+    // 处理 configurationElement() 方法中解析失败的 <resultMap> 标签
     parsePendingResultMaps();
+    // 处理 configurationElement() 方法中解析失败的 <cache-ref> 标签
     parsePendingCacheRefs();
     parsePendingStatements();
   }
@@ -196,6 +198,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   private void cacheRefElement(XNode context) {
     if (context != null) {
       configuration.addCacheRef(builderAssistant.getCurrentNamespace(), context.getStringAttribute("namespace"));
+      // CacheRefResolver 中记录了被引用的 namespace以及当前 namespace 关联的MapperBuilderAssistant 对象
       CacheRefResolver cacheRefResolver = new CacheRefResolver(builderAssistant,
           context.getStringAttribute("namespace"));
       try {
@@ -265,6 +268,8 @@ public class XMLMapperBuilder extends BaseBuilder {
   private ResultMap resultMapElement(XNode resultMapNode, List<ResultMapping> additionalResultMappings,
       Class<?> enclosingType) {
     ErrorContext.instance().activity("processing " + resultMapNode.getValueBasedIdentifier());
+    // 获取 <resultMap> 标签的type 属性值，这个值表示结果集将被映射成 type 指定类型的对象。
+    // 如果没有指定 type 属性的话，会找其他属性值，优先级依次是：type、ofType、resultType、javaType
     String type = resultMapNode.getStringAttribute("type", resultMapNode.getStringAttribute("ofType",
         resultMapNode.getStringAttribute("resultType", resultMapNode.getStringAttribute("javaType"))));
     Class<?> typeClass = resolveClass(type);
@@ -287,9 +292,13 @@ public class XMLMapperBuilder extends BaseBuilder {
         resultMappings.add(buildResultMappingFromContext(resultChild, typeClass, flags));
       }
     }
+    // 获取 <resultMap> 标签的id 属性，默认值会拼装所有父标签的id、value 或 property 属性值
     String id = resultMapNode.getStringAttribute("id", resultMapNode.getValueBasedIdentifier());
+    // 获取 <resultMap> 标签的extends、autoMapping 等属性
     String extend = resultMapNode.getStringAttribute("extends");
     Boolean autoMapping = resultMapNode.getBooleanAttribute("autoMapping");
+    // 创建 ResultMapResolver 对象，ResultMapResolver 会根据上面解析到的ResultMappings 集合以及 <resultMap> 标签的属性构造 ResultMap 对象，
+    // 并将其添加到 Configuration.resultMaps 集合（StrictMap 类型）中
     ResultMapResolver resultMapResolver = new ResultMapResolver(builderAssistant, id, typeClass, extend, discriminator,
         resultMappings, autoMapping);
     try {

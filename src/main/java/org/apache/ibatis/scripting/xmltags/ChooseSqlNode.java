@@ -21,7 +21,13 @@ import java.util.List;
  * @author Clinton Begin
  */
 public class ChooseSqlNode implements SqlNode {
+  /**
+   * 用来记录 <otherwise> 子标签生成的 MixedSqlNode 对象，该字段可以为 null
+   */
   private final SqlNode defaultSqlNode;
+  /**
+   * 用来记录所有 <when> 子标签对应的 IfSqlNode 对象
+   */
   private final List<SqlNode> ifSqlNodes;
 
   public ChooseSqlNode(List<SqlNode> ifSqlNodes, SqlNode defaultSqlNode) {

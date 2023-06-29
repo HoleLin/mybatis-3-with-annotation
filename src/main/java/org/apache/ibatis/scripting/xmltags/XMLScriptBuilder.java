@@ -62,6 +62,10 @@ public class XMLScriptBuilder extends BaseBuilder {
     nodeHandlerMap.put("bind", new BindHandler());
   }
 
+  /**
+   * parseScriptNode 会判断整个 SQL 语句是否为动态 SQL，判断的依据是：如果 SQL 语句中包含任意一个动态 SQL 片段，那么整个 SQL 即为动态 SQL 语句
+   * @return
+   */
   public SqlSource parseScriptNode() {
     MixedSqlNode rootSqlNode = parseDynamicTags(context);
     SqlSource sqlSource;
@@ -74,29 +78,42 @@ public class XMLScriptBuilder extends BaseBuilder {
   }
 
   protected MixedSqlNode parseDynamicTags(XNode node) {
+    // 解析后的SqlNode结果集合
     List<SqlNode> contents = new ArrayList<>();
     NodeList children = node.getNode().getChildNodes();
+    // XMLScriptBuilder.parseDynamicTags() 方法，其中会判断一个 SQL 片段是否为动态 SQL，判断的标准是：
+    // 如果这个 SQL 片段包含了未解析的“${}”占位符或动态 SQL 标签，则为动态 SQL 语句。但注意，如果是只包含了“#{}”占位符，也不是动态 SQL
+    // 获取SQL标签下的所有节点，包括标签节点和文本节点
     for (int i = 0; i < children.getLength(); i++) {
       XNode child = node.newXNode(children.item(i));
       if (child.getNode().getNodeType() == Node.CDATA_SECTION_NODE || child.getNode().getNodeType() == Node.TEXT_NODE) {
+        // 处理文本节点，也就是SQL语句
         String data = child.getStringBody("");
+        // TextSqlNode 表示的是SQL 语句的文本（可能包含“${}”占位符）
         TextSqlNode textSqlNode = new TextSqlNode(data);
+        // 解析SQL语句，如果含有未解析的"${}"占位符，则为动态SQL
         if (textSqlNode.isDynamic()) {
           contents.add(textSqlNode);
+          // 标记为动态SQL语句
           isDynamic = true;
         } else {
+          // StaticTextSqlNode 表示的是不包含占位符的SQL 语句文本
           contents.add(new StaticTextSqlNode(data));
         }
       } else if (child.getNode().getNodeType() == Node.ELEMENT_NODE) { // issue #628
+        // 如果解析到一个子标签，那么一定是动态SQL
+        // 这里会根据不同的标签，获取不同的NodeHandler，然后由NodeHandler进行后续解析
         String nodeName = child.getNode().getNodeName();
         NodeHandler handler = nodeHandlerMap.get(nodeName);
         if (handler == null) {
           throw new BuilderException("Unknown element <" + nodeName + "> in SQL statement.");
         }
+        // 处理动态SQL语句，并将解析得到的SqlNode对象记录到contents集合中
         handler.handleNode(child, contents);
         isDynamic = true;
       }
     }
+    // 解析后的SqlNode集合将会被封装成MixedSqlNode返回
     return new MixedSqlNode(contents);
   }
 

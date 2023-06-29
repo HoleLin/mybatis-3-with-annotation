@@ -16,9 +16,13 @@
 package org.apache.ibatis.scripting.xmltags;
 
 /**
+ * StaticTextSqlNode 用于表示非动态的 SQL 片段
  * @author Clinton Begin
  */
 public class StaticTextSqlNode implements SqlNode {
+  /**
+   * 用于记录非动态 SQL 片段的文本内容
+   */
   private final String text;
 
   public StaticTextSqlNode(String text) {
@@ -27,6 +31,7 @@ public class StaticTextSqlNode implements SqlNode {
 
   @Override
   public boolean apply(DynamicContext context) {
+    // apply() 方法会直接将 text 字段值追加到 DynamicContext.sqlBuilder 的最末尾
     context.appendSql(text);
     return true;
   }
