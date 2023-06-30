@@ -32,6 +32,7 @@ import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.transaction.managed.ManagedTransactionFactory;
 
 /**
+ * DefaultSqlSessionFactory 是MyBatis中用来创建DefaultSqlSession 的具体工厂实现
  * @author Clinton Begin
  */
 public class DefaultSqlSessionFactory implements SqlSessionFactory {
@@ -91,10 +92,15 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
       boolean autoCommit) {
     Transaction tx = null;
     try {
+      // 获取Environment对象
       final Environment environment = configuration.getEnvironment();
+      // 获取TransactionFactory对象
       final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+      // 从数据源中创建Transaction
       tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
+      // 根据配置创建Executor对象
       final Executor executor = configuration.newExecutor(tx, execType);
+      // 在Executor的基础上创建DefaultSqlSession对象
       return new DefaultSqlSession(configuration, executor, autoCommit);
     } catch (Exception e) {
       closeTransaction(tx); // may have fetched a connection so lets call close()
@@ -108,16 +114,21 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
     try {
       boolean autoCommit;
       try {
+        // 获取事务提交方式
         autoCommit = connection.getAutoCommit();
       } catch (SQLException e) {
         // Failover to true, as most poor drivers
         // or databases won't support transactions
         autoCommit = true;
       }
+      // 获取Environment对象、TransactionFactory
       final Environment environment = configuration.getEnvironment();
       final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+      // 通过Connection对象创建Transaction
       final Transaction tx = transactionFactory.newTransaction(connection);
+      // 创建Executor对象
       final Executor executor = configuration.newExecutor(tx, execType);
+      // 创建DefaultSqlSession对象
       return new DefaultSqlSession(configuration, executor, autoCommit);
     } catch (Exception e) {
       throw ExceptionFactory.wrapException("Error opening session.  Cause: " + e, e);

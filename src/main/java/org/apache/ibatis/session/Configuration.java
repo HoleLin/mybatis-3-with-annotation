@@ -740,6 +740,7 @@ public class Configuration {
     if (cacheEnabled) {
       executor = new CachingExecutor(executor);
     }
+    // InterceptorChain 是 Interceptor 构成的责任链
     return (Executor) interceptorChain.pluginAll(executor);
   }
 
